@@ -2,6 +2,7 @@ package com.example.luisle.googlemapclone.googleMap;
 
 import com.example.luisle.googlemapclone.common.BasePresenter;
 import com.example.luisle.googlemapclone.common.BaseView;
+import com.google.android.gms.maps.model.LatLng;
 
 /**
  * Created by LuisLe on 5/16/2017.
@@ -10,6 +11,7 @@ import com.example.luisle.googlemapclone.common.BaseView;
 public interface MapContract {
     interface View extends BaseView<Presenter> {
         void addMarker(double lat, double lng, String locality);
+        void drawRoutes(LatLng origin, LatLng destination, String originAddress, String destinationAddress,String polylinePoints);
     }
 
     interface Presenter extends BasePresenter {

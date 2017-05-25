@@ -3,11 +3,14 @@ package com.example.luisle.googlemapclone;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.Toast;
 
 import com.example.luisle.googlemapclone.googleMap.MapContract;
 import com.example.luisle.googlemapclone.googleMap.MapPresenter;
@@ -23,23 +26,42 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.maps.android.PolyUtil;
+
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements MapContract.View, OnMapReadyCallback {
 
     private MapFragment mapFragment;
     private MapPresenter mapPresenter;
     private GoogleMap googleMap;
-    private Marker marker;
+    private Marker searchMarker;
 
     private static final int REQUEST_CODE_AUTOCOMPLETE = 1;
+
+    private FloatingActionButton fabFindRoute;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        fabFindRoute = (FloatingActionButton) findViewById(R.id.fabFindRoute);
+
         mapPresenter = new MapPresenter(MainActivity.this, this);
         mapFragment = (MapFragment) getFragmentManager().findFragmentById(R.id.googleMap);
         mapFragment.getMapAsync(this);
+
+        fabFindRoute.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                String origin = "Go Vap, Ho Chi Minh City";
+                String destination = "Binh Thanh, Ho Chi Minh City";
+                mapPresenter.findRoutes(origin, destination);
+            }
+        });
     }
 
     @Override
@@ -120,15 +142,39 @@ public class MainActivity extends AppCompatActivity implements MapContract.View,
         CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngZoom(newLatLng, zoom);
 
         // Check and remove marker
-        if (marker != null) {
-            marker.remove();
+        if (searchMarker != null) {
+            searchMarker.remove();
         }
 
         MarkerOptions markerOptions = new MarkerOptions()
                                             .position(newLatLng)
                                             .title(locality);
-        marker = googleMap.addMarker(markerOptions);
+        searchMarker = googleMap.addMarker(markerOptions);
 
         googleMap.moveCamera(cameraUpdate);
     }
+
+    @Override
+    public void drawRoutes(LatLng origin, LatLng destination, String originAddress, String destinationAddress, String polylinePoints) {
+        List<LatLng> decodedPath = PolyUtil.decode(polylinePoints);
+        PolylineOptions polylineOptions = new PolylineOptions()
+                                                .addAll(decodedPath)
+                                                .clickable(true);
+
+        googleMap.addPolyline(polylineOptions);
+
+        googleMap.setOnPolylineClickListener(new GoogleMap.OnPolylineClickListener() {
+            @Override
+            public void onPolylineClick(Polyline polyline) {
+                Toast.makeText(getApplicationContext(), "Hello", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+
+        googleMap.addMarker(new MarkerOptions().position(origin).title(originAddress));
+        googleMap.addMarker(new MarkerOptions().position(destination).title(destinationAddress));
+
+        googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(origin, 15));
+    }
+
 }
