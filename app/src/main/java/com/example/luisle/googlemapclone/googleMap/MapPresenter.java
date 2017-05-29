@@ -3,6 +3,7 @@ package com.example.luisle.googlemapclone.googleMap;
 import android.content.Context;
 import android.location.Address;
 import android.location.Geocoder;
+import android.os.Handler;
 import android.support.annotation.NonNull;
 
 import com.example.luisle.googlemapclone.model.Direction;
@@ -38,14 +39,22 @@ public class MapPresenter implements MapContract.Presenter {
 
     @Override
     public void searchPlace(String locationName) {
+        view.showProgressDialog("Searching ...");
         try {
             Geocoder geocoder = new Geocoder(context);
             List<Address> list = geocoder.getFromLocationName(locationName, 1);
             Address address = list.get(0);
-            String locality = address.getLocality();
-            double lat = address.getLatitude();
-            double lng = address.getLongitude();
-            view.addMarker(lat, lng, locality);
+            final String locality = address.getLocality();
+            final double lat = address.getLatitude();
+            final double lng = address.getLongitude();
+            new Handler().postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    view.hideProgressDialog();
+                    view.addMarker(lat, lng, locality);
+                }
+            }, 2000);
+
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -53,6 +62,7 @@ public class MapPresenter implements MapContract.Presenter {
 
     @Override
     public void findRoutes(String startPoint, String endPoint) {
+        view.showProgressDialog("Finding ...");
         String baseUrl = "https://maps.googleapis.com/maps/";
         Retrofit retrofit = new Retrofit.Builder()
                                 .baseUrl(baseUrl)
@@ -66,16 +76,22 @@ public class MapPresenter implements MapContract.Presenter {
             public void onResponse(@NonNull Call<Direction> call, @NonNull Response<Direction> response) {
                 Direction direction = response.body();
                 if (direction != null) {
-                    LatLng origin = new LatLng(
+                    final LatLng origin = new LatLng(
                             direction.getRoutes().get(0).getLegs().get(0).getStart_location().getLat(),
                             direction.getRoutes().get(0).getLegs().get(0).getStart_location().getLng());
-                    LatLng destination = new LatLng(
+                    final LatLng destination = new LatLng(
                             direction.getRoutes().get(0).getLegs().get(0).getEnd_location().getLat(),
                             direction.getRoutes().get(0).getLegs().get(0).getEnd_location().getLng());
-                    String originAddress = direction.getRoutes().get(0).getLegs().get(0).getStart_address();
-                    String destinationAddress = direction.getRoutes().get(0).getLegs().get(0).getEnd_address();
-                    String polylinePoints = direction.getRoutes().get(0).getOverview_polyline().getPoints();
-                    view.drawRoutes(origin, destination, originAddress, destinationAddress, polylinePoints);
+                    final String originAddress = direction.getRoutes().get(0).getLegs().get(0).getStart_address();
+                    final String destinationAddress = direction.getRoutes().get(0).getLegs().get(0).getEnd_address();
+                    final String polylinePoints = direction.getRoutes().get(0).getOverview_polyline().getPoints();
+                    new Handler().postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            view.hideProgressDialog();
+                            view.drawRoutes(origin, destination, originAddress, destinationAddress, polylinePoints);
+                        }
+                    }, 1000);
                 }
             }
 

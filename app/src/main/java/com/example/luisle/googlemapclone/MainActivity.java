@@ -1,15 +1,20 @@
 package com.example.luisle.googlemapclone;
 
+import android.app.Dialog;
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.text.TextUtils;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.Toast;
 
 import com.example.luisle.googlemapclone.googleMap.MapContract;
@@ -30,6 +35,7 @@ import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.maps.android.PolyUtil;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements MapContract.View, OnMapReadyCallback {
@@ -37,11 +43,17 @@ public class MainActivity extends AppCompatActivity implements MapContract.View,
     private MapFragment mapFragment;
     private MapPresenter mapPresenter;
     private GoogleMap googleMap;
-    private Marker searchMarker;
+    private Marker searchMarker, originMarker, destinationMarker;
+    private List<LatLng> decodedPath;
+    private List<Polyline> polylineList = new ArrayList<>();
 
     private static final int REQUEST_CODE_AUTOCOMPLETE = 1;
 
+
     private FloatingActionButton fabFindRoute;
+
+    private ProgressDialog progressDialog;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,9 +69,30 @@ public class MainActivity extends AppCompatActivity implements MapContract.View,
         fabFindRoute.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                String origin = "Go Vap, Ho Chi Minh City";
-                String destination = "Binh Thanh, Ho Chi Minh City";
-                mapPresenter.findRoutes(origin, destination);
+                final Dialog findRoutesDialog = new Dialog(MainActivity.this);
+                findRoutesDialog.setContentView(R.layout.dialog_find_route);
+                final EditText edtStartPoint = (EditText) findRoutesDialog.findViewById(R.id.edtDialog_StartPoint);
+                final EditText edtEndPint = (EditText) findRoutesDialog.findViewById(R.id.edtDialog_EndPoint);
+                Button btnFindRoute = (Button) findRoutesDialog.findViewById(R.id.btnFindRoute);
+
+                btnFindRoute.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        String origin = edtStartPoint.getText().toString();
+                        String destination = edtEndPint.getText().toString();
+
+                        if (TextUtils.isEmpty(origin) || TextUtils.isEmpty(destination)) {
+                            Toast.makeText(getApplicationContext(),
+                                    "Start Point or End Point must be filled in",
+                                    Toast.LENGTH_SHORT).show();
+                        } else {
+                            mapPresenter.findRoutes(origin, destination);
+                            findRoutesDialog.dismiss();
+                        }
+                    }
+                });
+
+                findRoutesDialog.show();
             }
         });
     }
@@ -156,25 +189,41 @@ public class MainActivity extends AppCompatActivity implements MapContract.View,
 
     @Override
     public void drawRoutes(LatLng origin, LatLng destination, String originAddress, String destinationAddress, String polylinePoints) {
-        List<LatLng> decodedPath = PolyUtil.decode(polylinePoints);
-        PolylineOptions polylineOptions = new PolylineOptions()
-                                                .addAll(decodedPath)
-                                                .clickable(true);
-
-        googleMap.addPolyline(polylineOptions);
-
-        googleMap.setOnPolylineClickListener(new GoogleMap.OnPolylineClickListener() {
-            @Override
-            public void onPolylineClick(Polyline polyline) {
-                Toast.makeText(getApplicationContext(), "Hello", Toast.LENGTH_SHORT).show();
+        if (decodedPath != null) {
+            decodedPath.clear();
+            for (Polyline polyline : polylineList) {
+                polyline.remove();
             }
-        });
+        }
 
+        if (originMarker != null && destinationMarker != null) {
+            originMarker.remove();
+            destinationMarker.remove();
+        }
 
-        googleMap.addMarker(new MarkerOptions().position(origin).title(originAddress));
-        googleMap.addMarker(new MarkerOptions().position(destination).title(destinationAddress));
+        decodedPath = PolyUtil.decode(polylinePoints);
+        PolylineOptions polylineOptions = new PolylineOptions()
+                                                .addAll(decodedPath);
+
+        polylineList.add(googleMap.addPolyline(polylineOptions));
+
+        originMarker = googleMap.addMarker(new MarkerOptions().position(origin).title(originAddress));
+        destinationMarker = googleMap.addMarker(new MarkerOptions().position(destination).title(destinationAddress));
 
         googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(origin, 15));
     }
 
+    @Override
+    public void showProgressDialog(String message) {
+        progressDialog = new ProgressDialog(MainActivity.this);
+        progressDialog.setMessage(message);
+        progressDialog.setIndeterminate(true);
+        progressDialog.setCanceledOnTouchOutside(false);
+        progressDialog.show();
+    }
+
+    @Override
+    public void hideProgressDialog() {
+        progressDialog.dismiss();
+    }
 }
